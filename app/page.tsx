@@ -12,7 +12,7 @@ import Wishes from "@/components/Wishes";
 import Footer from "@/components/Footer";
 import MusicToggle from "@/components/MusicToggle";
 
-const EVENT_DATE = "2026-08-27T09:00:00+08:00";
+const EVENT_DATE = "2026-08-27T10:00:00+08:00";
 const EVENT_END_TIME = "14:00"; // jam selesai, format 24 jam
 
 function InvitationContent() {
