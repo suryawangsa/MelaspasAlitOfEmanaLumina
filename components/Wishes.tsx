@@ -36,6 +36,10 @@ export default function Wishes({ guestName }: { guestName?: string }) {
 
   useEffect(() => {
     loadWishes();
+
+    // Auto-refresh tiap 15 detik biar ucapan/RSVP baru otomatis muncul
+    const interval = setInterval(loadWishes, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const attendingCount = wishes.filter(
