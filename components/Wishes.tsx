@@ -9,6 +9,22 @@ type Wish = {
   createdAt: string;
 };
 
+const PENDING_KEY = "pendingWishes";
+
+function getPendingWishes(): Wish[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePendingWishes(wishes: Wish[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PENDING_KEY, JSON.stringify(wishes));
+}
+
 export default function Wishes({ guestName }: { guestName?: string }) {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [name, setName] = useState(
@@ -21,14 +37,29 @@ export default function Wishes({ guestName }: { guestName?: string }) {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   const loadWishes = async () => {
     try {
       const res = await fetch("/api/wishes", { cache: "no-store" });
       const data = await res.json();
-      setWishes(data.wishes || []);
+      const fetched: Wish[] = data.wishes || [];
+
+      // Ucapan yang baru dikirim tapi belum sempat ke-sync ke CSV publik Google
+      const pending = getPendingWishes();
+      const stillPending = pending.filter((p) => {
+        const alreadySynced = fetched.some(
+          (w) => w.name === p.name && w.message === p.message,
+        );
+        const tooOld =
+          Date.now() - new Date(p.createdAt).getTime() > 10 * 60 * 1000;
+        return !alreadySynced && !tooOld;
+      });
+      savePendingWishes(stillPending);
+
+      setWishes([...stillPending, ...fetched]);
     } catch {
-      // failed to load, leave list empty
+      // gagal memuat, biarkan list kosong
     } finally {
       setLoading(false);
     }
@@ -37,8 +68,8 @@ export default function Wishes({ guestName }: { guestName?: string }) {
   useEffect(() => {
     loadWishes();
 
-    // Auto-refresh tiap 15 detik biar ucapan/RSVP baru otomatis muncul
-    const interval = setInterval(loadWishes, 15000);
+    // Auto-refresh tiap 20 detik biar ucapan/RSVP baru otomatis muncul
+    const interval = setInterval(loadWishes, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -48,8 +79,6 @@ export default function Wishes({ guestName }: { guestName?: string }) {
   const notAttendingCount = wishes.filter(
     (w) => w.attendance === "Not Attending",
   ).length;
-
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +97,18 @@ export default function Wishes({ guestName }: { guestName?: string }) {
         throw new Error(data.error || "Gagal mengirim ucapan");
       }
 
-      // Optimistic update: langsung tampilkan ucapan baru tanpa nunggu Google refresh CSV-nya
-      setWishes((prev) => [
-        { name, attendance, message, createdAt: new Date().toISOString() },
-        ...prev,
-      ]);
+      const newWish: Wish = {
+        name,
+        attendance,
+        message,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Simpan sebagai pending biar tetap keliatan walau halaman di-refresh
+      const pending = getPendingWishes();
+      savePendingWishes([newWish, ...pending]);
+
+      setWishes((prev) => [newWish, ...prev]);
       setName("");
       setMessage("");
       setSubmitted(true);
@@ -156,6 +192,12 @@ export default function Wishes({ guestName }: { guestName?: string }) {
           >
             {sending ? "Sending..." : submitted ? "Send Another Wish" : "Send"}
           </button>
+
+          {error && (
+            <p className="text-center text-xs text-red-200 font-body">
+              {error}
+            </p>
+          )}
         </form>
 
         <div className="relative space-y-4 max-h-80 overflow-y-auto pr-1">
