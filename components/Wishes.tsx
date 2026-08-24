@@ -24,7 +24,7 @@ export default function Wishes({ guestName }: { guestName?: string }) {
 
   const loadWishes = async () => {
     try {
-      const res = await fetch("/api/wishes");
+      const res = await fetch("/api/wishes", { cache: "no-store" });
       const data = await res.json();
       setWishes(data.wishes || []);
     } catch {

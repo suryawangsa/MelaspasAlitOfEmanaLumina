@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const FORM_ACTION_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfTqx4nUqFzkG6iLYGPMMRNPO4wcJqufZHahOGTPAy-xYpgEg/formResponse";
 
